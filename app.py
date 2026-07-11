@@ -32,7 +32,7 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.divider()
-st.sidebar.caption(f"AI 引擎：Claude ({config.MODEL})")
+st.sidebar.caption(f"AI 引擎：DeepSeek ({config.MODEL})")
 
 # ── 页面路由 ─────────────────────────────────────────────────
 if page == "📋 JD分析":

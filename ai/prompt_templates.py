@@ -14,10 +14,7 @@ JD_ANALYSIS_SYSTEM_PROMPT = """你是一位资深猎头顾问，擅长从岗位 
 - 关键词组合要分层次：精确组合（高匹配度）+ 宽泛组合（扩大范围）
 - 输出必须是合法的 JSON，不要包含任何 markdown 代码块标记"""
 
-
-def build_jd_analysis_prompt(jd_text: str) -> str:
-    """构建 JD 分析的 user prompt"""
-    return f"""请分析以下 JD，输出搜索栏位配置建议。
+JD_ANALYSIS_USER_PROMPT_TEMPLATE = """请分析以下 JD，输出搜索栏位配置建议。
 
 ## JD 原文
 {jd_text}
@@ -113,3 +110,11 @@ def build_jd_analysis_prompt(jd_text: str) -> str:
 }}
 
 请直接输出 JSON，不要加任何解释性文字。"""
+
+
+def build_jd_analysis_messages(jd_text: str) -> list[dict]:
+    """构建 JD 分析的 messages（OpenAI 兼容格式）"""
+    return [
+        {"role": "system", "content": JD_ANALYSIS_SYSTEM_PROMPT},
+        {"role": "user", "content": JD_ANALYSIS_USER_PROMPT_TEMPLATE.format(jd_text=jd_text)},
+    ]
