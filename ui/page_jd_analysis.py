@@ -6,6 +6,38 @@ from ai.jd_analyzer import analyze_jd
 from utils.file_handler import extract_text_from_upload
 
 
+def _render_hard_filters(hard_filters: dict):
+    """渲染硬性筛选条件 — 一票否决项，页面最顶部"""
+
+    st.subheader("🚫 硬性筛选条件")
+
+    summary = hard_filters.get("summary", "")
+    if summary:
+        st.markdown(
+            f"> 🔴 **{summary}**"
+        )
+
+    items = hard_filters.get("items", [])
+    if items:
+        cols = st.columns(len(items))
+        for i, item in enumerate(items):
+            condition = item.get("condition", "")
+            requirement = item.get("requirement", "")
+            note = item.get("note", "")
+
+            with cols[i]:
+                st.markdown(
+                    f"<div style='text-align:center;padding:8px 0'>"
+                    f"<span style='font-size:0.75em;color:#888'>{condition}</span><br>"
+                    f"<span style='font-size:1.1em;font-weight:700;color:#d32f2f'>{requirement}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if note:
+                    st.caption(note)
+        st.divider()
+
+
 def _render_search_fields_table(search_fields: list):
     """渲染搜索栏位配置表"""
     st.subheader("🔧 搜索栏位配置建议")
@@ -48,7 +80,7 @@ def _render_keywords(keyword_combinations: list):
     """渲染关键词组合策略 — badge 标签样式"""
     st.subheader("🔑 关键词组合策略")
     badges = []
-    for i, combo in enumerate(keyword_combinations):
+    for combo in keyword_combinations:
         badge = (
             f"<span style='"
             f"background:#1565c0;color:white;"
@@ -61,60 +93,40 @@ def _render_keywords(keyword_combinations: list):
 
 
 def _render_talent_profile(profile: dict):
-    """渲染人才画像 — 紧凑卡片，小字号"""
+    """渲染人才画像 — 使用原生 Streamlit 组件，自动适配主题"""
     st.subheader("🎯 人才画像")
 
-    # 学历 / 经验 / 薪资 — 三列紧凑卡片
-    edu = profile.get("education", "—")
-    exp = profile.get("experience_years", "—")
-    salary = profile.get("salary_estimate", "—")
+    # 学历 / 经验 / 薪资 — 三列
+    col1, col2, col3 = st.columns(3)
+    col1.caption("学历要求")
+    col1.markdown(f"**{profile.get('education', '—')}**")
+    col2.caption("经验年限")
+    col2.markdown(f"**{profile.get('experience_years', '—')}**")
+    col3.caption("薪资预估")
+    col3.markdown(f"**{profile.get('salary_estimate', '—')}**")
 
-    card_html = f"""
-    <div style='
-        display:flex; gap:12px; margin:8px 0 16px 0;
-        font-size:0.9em;
-    '>
-        <div style='
-            flex:1; background:#1e1e1e; border:1px solid #333;
-            border-radius:8px; padding:10px 14px; text-align:center;
-        '>
-            <div style='color:#888; font-size:0.75em; margin-bottom:2px;'>学历要求</div>
-            <div style='color:#e0e0e0; font-weight:600;'>{edu}</div>
-        </div>
-        <div style='
-            flex:1; background:#1e1e1e; border:1px solid #333;
-            border-radius:8px; padding:10px 14px; text-align:center;
-        '>
-            <div style='color:#888; font-size:0.75em; margin-bottom:2px;'>经验年限</div>
-            <div style='color:#e0e0e0; font-weight:600;'>{exp}</div>
-        </div>
-        <div style='
-            flex:1; background:#1e1e1e; border:1px solid #333;
-            border-radius:8px; padding:10px 14px; text-align:center;
-        '>
-            <div style='color:#888; font-size:0.75em; margin-bottom:2px;'>薪资预估</div>
-            <div style='color:#e0e0e0; font-weight:600;'>{salary}</div>
-        </div>
-    </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
+    # 薪资结构详情
+    salary_info = profile.get("salary_info", {})
+    if salary_info and any(salary_info.values()):
+        with st.expander("💰 薪资结构详情"):
+            if salary_info.get("range"):
+                st.markdown(f"**范围：** {salary_info['range']}")
+            if salary_info.get("structure"):
+                st.markdown(f"**结构：** {salary_info['structure']}")
+            if salary_info.get("bonus"):
+                st.markdown(f"**奖金/股权：** {salary_info['bonus']}")
 
-    st.markdown(
-        f"<span style='color:#aaa;font-size:0.85em'>"
-        f"<b>行业背景：</b>{profile.get('industry_background', '—')}"
-        f"</span>",
-        unsafe_allow_html=True,
-    )
+    # 行业背景
+    industry = profile.get("industry_background", "")
+    if industry:
+        st.caption(f"行业背景：{industry}")
 
     # 技能 Badge
     must_skills = profile.get("must_have_skills", [])
     nice_skills = profile.get("nice_to_have_skills", [])
 
     if must_skills:
-        st.markdown(
-            "<span style='font-size:0.85em;color:#ccc'><b>必备技能：</b></span>",
-            unsafe_allow_html=True,
-        )
+        st.caption("必备技能：")
         badges = " ".join(
             f"<span style='background:#1565c0;color:white;padding:2px 10px;"
             f"border-radius:12px;margin:2px;display:inline-block;font-size:0.8em'>{s}</span>"
@@ -123,10 +135,7 @@ def _render_talent_profile(profile: dict):
         st.markdown(badges, unsafe_allow_html=True)
 
     if nice_skills:
-        st.markdown(
-            "<span style='font-size:0.85em;color:#ccc'><b>加分技能：</b></span>",
-            unsafe_allow_html=True,
-        )
+        st.caption("加分技能：")
         badges = " ".join(
             f"<span style='background:#2e7d32;color:white;padding:2px 10px;"
             f"border-radius:12px;margin:2px;display:inline-block;font-size:0.8em'>{s}</span>"
@@ -136,7 +145,7 @@ def _render_talent_profile(profile: dict):
 
 
 def _render_talent_source(source: dict):
-    """渲染人才来源策略 —— 挖人目标公司卡片"""
+    """渲染人才来源策略 — 使用原生 Streamlit 组件"""
     if not source:
         return
 
@@ -144,40 +153,29 @@ def _render_talent_source(source: dict):
 
     strategy = source.get("strategy", "")
     if strategy:
-        st.markdown(
-            f"<div style='background:#1a237e;border-left:4px solid #3f51b5;"
-            f"padding:10px 14px;border-radius:4px;margin:8px 0 16px 0;font-size:0.9em'>"
-            f"💡 <b>策略：</b>{strategy}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+        st.info(f"💡 **策略：** {strategy}")
 
     companies = source.get("target_companies", [])
     if companies:
+        type_colors = {
+            "直接竞品": "red",
+            "上游供应商": "blue",
+            "下游客户": "green",
+            "同赛道": "orange",
+            "JD指定": "violet",
+        }
+
         for c in companies:
             name = c.get("name", "—")
             ctype = c.get("type", "")
             reason = c.get("reason", "")
 
-            type_colors = {
-                "直接竞品": "#c62828",
-                "上游供应商": "#1565c0",
-                "下游客户": "#2e7d32",
-                "同赛道": "#e65100",
-            }
-            color = type_colors.get(ctype, "#555")
+            tag_color = type_colors.get(ctype, "gray")
 
-            st.markdown(
-                f"<div style='background:#1e1e1e;border:1px solid #333;"
-                f"border-radius:8px;padding:10px 14px;margin:6px 0;"
-                f"display:flex;align-items:center;gap:10px;font-size:0.85em'>"
-                f"<span style='background:{color};color:white;padding:2px 10px;"
-                f"border-radius:10px;font-size:0.8em;white-space:nowrap'>{ctype}</span>"
-                f"<b style='color:#e0e0e0'>{name}</b>"
-                f"<span style='color:#888;font-size:0.9em'>— {reason}</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
+            with st.container(border=True):
+                st.markdown(f"**{name}**  `:{tag_color}[{ctype}]`")
+                if reason:
+                    st.caption(f"— {reason}")
 
 
 def show():
@@ -232,28 +230,34 @@ def show():
             else:
                 st.success("✅ 分析完成！")
 
-                # ── 结果展示 ─────────────────────────────
                 st.markdown(f"### 📌 {result.get('position_title', '未知岗位')}")
                 st.caption(result.get("position_summary", ""))
 
                 st.divider()
 
-                # 1. 搜索栏位配置表
+                # ── 结果展示（新顺序） ────────────────────
+
+                # 1. 硬性筛选条件（置顶，最重要）
+                hard_filters = result.get("hard_filters", {})
+                if hard_filters:
+                    _render_hard_filters(hard_filters)
+
+                # 2. 搜索栏位配置表
                 search_fields = result.get("search_fields", [])
                 if search_fields:
                     _render_search_fields_table(search_fields)
 
-                # 2. 关键词组合
+                # 3. 关键词组合
                 keywords = result.get("keyword_combinations", [])
                 if keywords:
                     _render_keywords(keywords)
 
-                # 3. 人才画像
+                # 4. 人才画像
                 profile = result.get("talent_profile", {})
                 if profile:
                     _render_talent_profile(profile)
 
-                # 4. 人才来源策略（新增）
+                # 5. 人才来源策略
                 talent_source = result.get("talent_source", {})
                 if talent_source:
                     _render_talent_source(talent_source)
