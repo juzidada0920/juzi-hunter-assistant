@@ -219,120 +219,108 @@ def show():
     st.title("📋 JD 分析 — 生成搜索策略")
     st.caption("输入岗位 JD，AI 自动生成招聘平台的搜索栏位配置建议")
 
-    # ── 两栏布局 ──────────────────────────────────────
-    left, right = st.columns([1, 3])
-
-    # ── 左栏：历史记录 ────────────────────────────────
-    with left:
-        st.subheader("📂 历史记录")
-
-        if st.button("➕ 新建分析", use_container_width=True):
-            st.session_state.viewing_history_id = None
-            st.session_state.current_result = None
-            st.rerun()
-
-        st.divider()
-
-        records = list_all()
+    # ── 可折叠历史记录 ──────────────────────────────
+    records = list_all()
+    with st.expander(f"📂 历史记录（{len(records)}条）", expanded=False):
         if not records:
-            st.caption("暂无历史记录")
-
-        for r in records:
-            c1, c2 = st.columns([3.5, 1])
-            with c1:
-                label = f"**{r['title']}**\n{r['created_at'][:10]}"
-                if st.button(
-                    label,
-                    key=f"hist_{r['id']}",
-                    use_container_width=True,
-                    help=f"查看 {r['title']} 的分析结果",
-                ):
-                    st.session_state.viewing_history_id = r["id"]
-                    st.session_state.current_result = None
-                    st.rerun()
-            with c2:
-                if st.button("🗑️", key=f"del_{r['id']}", help="删除此记录"):
-                    delete(r["id"])
-                    if st.session_state.viewing_history_id == r["id"]:
-                        st.session_state.viewing_history_id = None
+            st.caption("暂无历史记录，分析 JD 后自动保存")
+        else:
+            for r in records:
+                c1, c2, c3 = st.columns([5, 1, 1])
+                with c1:
+                    if st.button(
+                        f"**{r['title']}**  _{r['created_at'][:10]}_",
+                        key=f"hist_{r['id']}",
+                        use_container_width=True,
+                        help=f"查看 {r['title']} 的完整分析结果",
+                    ):
+                        st.session_state.viewing_history_id = r["id"]
                         st.session_state.current_result = None
-                    st.rerun()
+                        st.rerun()
+                with c2:
+                    if st.button("🗑️", key=f"del_{r['id']}", help="删除"):
+                        delete(r["id"])
+                        if st.session_state.viewing_history_id == r["id"]:
+                            st.session_state.viewing_history_id = None
+                            st.session_state.current_result = None
+                        st.rerun()
 
-    # ── 右栏：内容区 ──────────────────────────────────
-    with right:
-        viewing_id = st.session_state.viewing_history_id
+    # ── 内容区 ──────────────────────────────────────
+    viewing_id = st.session_state.viewing_history_id
 
-        # 状态 A：查看历史记录
-        if viewing_id is not None:
-            record = get_by_id(viewing_id)
-            if record:
-                st.success(
-                    f"📂 历史记录 · {record['title']} · {record['created_at'][:10]}"
-                )
-                _render_full_result(record["result"])
-            else:
-                st.error("记录不存在或已被删除")
+    # 状态 A：查看历史记录
+    if viewing_id is not None:
+        record = get_by_id(viewing_id)
+        if record:
+            st.success(
+                f"📂 历史记录 · {record['title']} · {record['created_at'][:10]}"
+            )
+            if st.button("← 返回新建分析"):
                 st.session_state.viewing_history_id = None
                 st.rerun()
-            return  # 查看历史时不显示输入区
+            _render_full_result(record["result"])
+        else:
+            st.error("记录不存在或已被删除")
+            st.session_state.viewing_history_id = None
+            st.rerun()
+        return  # 查看历史时不显示输入区
 
-        # 状态 B：显示上次分析结果（如果有）
-        if st.session_state.current_result is not None:
-            st.success("✅ 已保存到历史记录")
-            _render_full_result(st.session_state.current_result)
-            st.divider()
-            # 继续显示输入区（让用户可以直接分析下一个 JD）
+    # 状态 B：显示上次分析结果（如果有）
+    if st.session_state.current_result is not None:
+        st.success("✅ 已保存到历史记录")
+        _render_full_result(st.session_state.current_result)
+        st.divider()
 
-        # ── 输入区（始终显示，除非在查看历史） ─────────
-        tab1, tab2 = st.tabs(["📝 粘贴 JD 文本", "📎 上传 JD 文件"])
+    # ── 输入区（始终显示，除非在查看历史） ─────────
+    tab1, tab2 = st.tabs(["📝 粘贴 JD 文本", "📎 上传 JD 文件"])
 
-        with tab1:
-            jd_text = st.text_area(
-                "将 JD 原文粘贴到下方",
-                placeholder=(
-                    "例如：\n\n岗位名称：Java 开发工程师\n工作地点：上海\n"
-                    "岗位职责：\n1. 负责公司核心业务系统的设计与开发\n2. ...\n\n"
-                    "任职要求：\n1. 本科及以上学历，计算机相关专业\n"
-                    "2. 3年以上 Java 开发经验\n3. 精通 Spring Cloud 微服务架构\n4. ..."
-                ),
-                height=250,
-            )
+    with tab1:
+        jd_text = st.text_area(
+            "将 JD 原文粘贴到下方",
+            placeholder=(
+                "例如：\n\n岗位名称：Java 开发工程师\n工作地点：上海\n"
+                "岗位职责：\n1. 负责公司核心业务系统的设计与开发\n2. ...\n\n"
+                "任职要求：\n1. 本科及以上学历，计算机相关专业\n"
+                "2. 3年以上 Java 开发经验\n3. 精通 Spring Cloud 微服务架构\n4. ..."
+            ),
+            height=250,
+        )
 
-        with tab2:
-            uploaded_file = st.file_uploader(
-                "支持 PDF / Word / TXT 格式",
-                type=["pdf", "docx", "doc", "txt"],
-            )
-            if uploaded_file:
-                try:
-                    jd_text = extract_text_from_upload(uploaded_file)
-                    st.success(f"✅ 已提取文件内容（{len(jd_text)} 字符）")
-                    with st.expander("预览提取的文本"):
-                        st.text(jd_text[:2000] + ("..." if len(jd_text) > 2000 else ""))
-                except Exception as e:
-                    st.error(f"❌ 文件读取失败：{e}")
+    with tab2:
+        uploaded_file = st.file_uploader(
+            "支持 PDF / Word / TXT 格式",
+            type=["pdf", "docx", "doc", "txt"],
+        )
+        if uploaded_file:
+            try:
+                jd_text = extract_text_from_upload(uploaded_file)
+                st.success(f"✅ 已提取文件内容（{len(jd_text)} 字符）")
+                with st.expander("预览提取的文本"):
+                    st.text(jd_text[:2000] + ("..." if len(jd_text) > 2000 else ""))
+            except Exception as e:
+                st.error(f"❌ 文件读取失败：{e}")
 
-        # ── 分析按钮 ────────────────────────────────────
-        if st.button("🔍 分析搜索策略", type="primary", use_container_width=True):
-            if not jd_text.strip():
-                st.warning("⚠️ 请先粘贴 JD 文本或上传文件")
-            elif len(jd_text.strip()) < 50:
-                st.warning("⚠️ JD 文本过短（少于50字），请检查输入是否完整")
+    # ── 分析按钮 ────────────────────────────────────
+    if st.button("🔍 分析搜索策略", type="primary", use_container_width=True):
+        if not jd_text.strip():
+            st.warning("⚠️ 请先粘贴 JD 文本或上传文件")
+        elif len(jd_text.strip()) < 50:
+            st.warning("⚠️ JD 文本过短（少于50字），请检查输入是否完整")
+        else:
+            with st.spinner("🤖 AI 正在分析 JD，提取搜索策略..."):
+                result = analyze_jd(jd_text.strip())
+
+            if "error" in result:
+                st.error(f"❌ 分析失败：{result['error']}")
+                if "raw_response" in result:
+                    with st.expander("查看 AI 原始返回"):
+                        st.code(result["raw_response"])
             else:
-                with st.spinner("🤖 AI 正在分析 JD，提取搜索策略..."):
-                    result = analyze_jd(jd_text.strip())
+                # 自动保存
+                title = result.get("position_title", "未知岗位")
+                save(title, jd_text.strip(), result)
 
-                if "error" in result:
-                    st.error(f"❌ 分析失败：{result['error']}")
-                    if "raw_response" in result:
-                        with st.expander("查看 AI 原始返回"):
-                            st.code(result["raw_response"])
-                else:
-                    # 自动保存
-                    title = result.get("position_title", "未知岗位")
-                    save(title, jd_text.strip(), result)
-
-                    # 存入 session_state 展示结果
-                    st.session_state.current_result = result
-                    st.session_state.viewing_history_id = None
-                    st.rerun()
+                # 存入 session_state 展示结果
+                st.session_state.current_result = result
+                st.session_state.viewing_history_id = None
+                st.rerun()
